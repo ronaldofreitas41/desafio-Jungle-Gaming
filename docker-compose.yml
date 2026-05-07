@@ -112,6 +112,8 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    volumes:
+      - ./services/games:/app
 
   # ---------------------------------------------------------------------------
   # Wallets Service
@@ -135,6 +137,9 @@ services:
       timeout: 5s
       retries: 10
       start_period: 15s
+    volumes:
+      - ./services/wallets:/app
+      - /app/node_modules
 
   # ---------------------------------------------------------------------------
   # Frontend (placeholder — candidate implements)

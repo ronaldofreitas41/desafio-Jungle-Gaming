@@ -16,7 +16,7 @@ async function bootstrap() {
     .build()
 
   const document = SwaggerModule.createDocument(app, config)
-
+  
   SwaggerModule.setup('docs', app, document)
   const port = process.env.PORT || 4001
   
@@ -24,3 +24,5 @@ async function bootstrap() {
     console.log(`Wallets service is running on port ${port}`)
   })
 }
+
+bootstrap()
