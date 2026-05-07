@@ -1,0 +1,43 @@
+# Build stage
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Copiar arquivos de lock e package.json
+COPY package.json pnpm-lock.yaml ./
+
+# Instalar dependências
+RUN pnpm install --frozen-lockfile
+
+# Copiar código fonte
+COPY . .
+
+# Build da aplicação
+RUN pnpm build
+
+# Runtime stage
+FROM node:20-alpine
+
+WORKDIR /app
+
+# Instalar pnpm
+RUN npm install -g pnpm
+
+# Copiar package.json
+COPY package.json pnpm-lock.yaml ./
+
+# Instalar apenas dependências de produção
+RUN pnpm install --frozen-lockfile --prod
+
+# Copiar build do stage anterior
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/public ./public
+
+# Expor porta
+EXPOSE 3000
+
+# Comando para iniciar
+CMD ["pnpm", "start"]
