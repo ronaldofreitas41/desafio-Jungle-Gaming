@@ -6,6 +6,6 @@ export default defineConfig({
     path: "prisma/migrations",
   },
   datasource: {
-    url: "postgresql://postgres:postgres@localhost:5432/wallets",
+    url: process.env.DATABASE_URL ?? "postgresql://admin:admin@postgres:5432/wallets",
   },
 });
