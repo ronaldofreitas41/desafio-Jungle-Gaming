@@ -5,15 +5,57 @@
 
 generator client {
   provider = "prisma-client"
-  output   = "../generated/prisma"
+  output   = "../generated/client"
 }
 
 datasource db {
   provider = "postgresql"
 }
 
-model Wallet {
-  id        String @id
-  userId    String @unique
-  balance   BigInt
+// O enum RoundStatus representa o status atual de uma rodada
+enum RoundStatus {
+  BETTING
+  RUNNING
+  CRASHED
+  FINISHED
+}
+
+// O enum BetStatus representa o status atual de uma aposta
+enum BetStatus {
+  PENDING
+  CASHED_OUT
+  LOST
+}
+
+
+// o modelo Bet representa uma aposta que foi realizada pelo usuario, contendo as informações basicas da aposta
+model Bet {
+  id                String      @id @default(uuid())
+  roundId           String
+  round             Round       @relation(fields: [roundId], references: [id])
+  playerId          String
+  username          String
+  amount            BigInt
+  cashoutMultiplier Decimal?    @db.Decimal(10,2)
+  payout            BigInt?
+  status            BetStatus
+  createdAt         DateTime    @default(now())
+
+  @@unique([roundId, playerId])
+  @@map("bets")
+}
+
+// o modelo Round representa uma rodada do jogo, contendo as informações básicas da rodada
+model Round {
+  id             String      @id @default(uuid())
+  status         RoundStatus
+  crashPoint     Decimal     @db.Decimal(10,2)
+  startedAt      DateTime?
+  crashedAt      DateTime?
+  createdAt      DateTime    @default(now())
+  serverSeed     String
+  serverSeedHash String
+  bets           Bet[]
+
+  @@map("rounds")
 }
