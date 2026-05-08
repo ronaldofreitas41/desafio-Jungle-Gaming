@@ -30,6 +30,7 @@
   },
   "include": [
     "src/**/*",
+    "generated/**/*",
     "prisma.config.ts"
   ],
   "exclude": [
