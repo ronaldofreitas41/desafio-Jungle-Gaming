@@ -2,16 +2,17 @@ import { Injectable } from "@nestjs/common";
 import { PassportStrategy } from "@nestjs/passport";
 import { ExtractJwt, Strategy } from "passport-jwt";
 
+
 @Injectable()
 export class JwtStrategy extends PassportStrategy(Strategy) {
   constructor() {
     super({
       // Extrai o token do header: Authorization: Bearer <token>
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
-      
+
       // Não rejeita tokens expirados aqui — o Keycloak trata disso
       ignoreExpiration: false,
-      
+
       // URL pública do Keycloak para validar a assinatura do JWT
       // O JWKS é o conjunto de chaves públicas do Keycloak
       secretOrKeyProvider: async (_req: any, rawJwtToken: any, done: any) => {
@@ -20,11 +21,11 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
           jwksUri,
           cache: true,
         });
-        
+
         const decoded = JSON.parse(
           Buffer.from(rawJwtToken.split(".")[0], "base64").toString()
         );
-        
+
         const key = await jwksClient.getSigningKey(decoded.kid);
         done(null, key.getPublicKey());
       },
