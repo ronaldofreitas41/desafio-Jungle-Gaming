@@ -6,11 +6,7 @@ import { HealthCheckResponseDto } from "../dtos/health-check-response.dto";
 import { JwtAuthGuard } from "@/infrastructure/auth/jwt.guard";
 
 // O Controller é a porta de entrada HTTP.
-// Sua única responsabilidade é:
-// 1. Receber a requisição HTTP
-// 2. Chamar o Use Case correto
-// 3. Retornar a resposta formatada via DTO
-// Ele NÃO contém lógica de negócio.
+
 @Controller("wallet")
 export class WalletController {
   // Injeta os use cases, não o repository diretamente.
@@ -18,11 +14,10 @@ export class WalletController {
   constructor(
     private readonly getMyWallet: GetMyWalletUseCase,
     private readonly createWallet: CreateWalletUseCase,
-  ) {}
+  ) { }
 
   // POST /wallet — cria uma nova carteira para o usuário autenticado
   //Autenticação é feita por meio do JwtAuthGuard, que verifica se o token JWT é válido. Se não for, a requisição é rejeitada com 401 Unauthorized.
-
   @Post()
   @UseGuards(JwtAuthGuard) // Protege o endpoint de saúde com autenticação
   async create(@Req() req: any) {
@@ -45,12 +40,12 @@ export class WalletController {
     // O DTO controla exatamente o que é exposto na API
     return { id: wallet.id, balance: wallet.balance };
   }
-  
+
   // GET /wallet/health — endpoint de saúde para monitoramento se a API está rodando
   //Autenticação é feita por meio do JwtAuthGuard, que verifica se o token JWT é válido. Se não for, a requisição é rejeitada com 401 Unauthorized.
 
   @Get("health")
-  @UseGuards(JwtAuthGuard) 
+  @UseGuards(JwtAuthGuard)
   check(): HealthCheckResponseDto {
     return { status: "ok", service: "wallets" };
   }
