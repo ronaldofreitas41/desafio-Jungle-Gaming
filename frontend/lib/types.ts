@@ -18,9 +18,9 @@ export interface Bet {
   roundId: string
   playerId: string
   playerName: string
-  amount: number // in cents
+  amount: bigint // in cents
   cashedOutAt?: number // multiplier when cashed out
-  profit?: number // in cents
+  profit?: bigint // in cents
   status: 'pending' | 'won' | 'lost'
   createdAt: string
 }
@@ -34,7 +34,7 @@ export interface Player {
 export interface Wallet {
   id: string
   playerId: string
-  balance: number // in cents
+  balance: bigint // in cents
 }
 
 // WebSocket Events (Server to Client)
@@ -84,7 +84,7 @@ export interface WSCashOutEvent {
     playerId: string
     playerName: string
     multiplier: number
-    profit: number
+    profit: bigint
   }
 }
 
