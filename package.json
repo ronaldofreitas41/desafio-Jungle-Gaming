@@ -12,6 +12,12 @@
     "docker:prune": "docker compose down -v --rmi all --remove-orphans && docker volume prune -f"
   },
   "devDependencies": {
-    "bun-types": "latest"
+    "bun-types": "latest",
+    "dotenv": "^17.4.2"
+  },
+  
+  "dependencies": {
+    "@prisma/client": "^7.8.0",
+    "prisma": "^7.8.0"
   }
 }

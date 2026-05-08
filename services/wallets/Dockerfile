@@ -7,6 +7,8 @@ RUN bun install
 
 COPY . .
 
+RUN bunx prisma generate
+
 EXPOSE 4002
 
 CMD ["bun", "run", "src/main.ts"]

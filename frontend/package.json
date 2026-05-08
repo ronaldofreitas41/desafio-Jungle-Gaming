@@ -63,6 +63,7 @@
     "zustand": "^5.0.13"
   },
   "devDependencies": {
+    "@kubb/cli": "^4.37.5",
     "@tailwindcss/postcss": "^4.2.0",
     "@types/node": "^22",
     "@types/react": "^19",
