@@ -14,7 +14,7 @@ RUN bunx prisma generate
 
 RUN chmod +x ./entrypoint.sh
 
-EXPOSE 4001
+EXPOSE 4002
 
 # Usa o entrypoint que roda prisma migrate antes de iniciar o serviço
 ENTRYPOINT ["./entrypoint.sh"]
