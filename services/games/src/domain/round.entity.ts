@@ -22,7 +22,7 @@ export class Round {
   // Inicia a rodada, mudando o status de BETTING para RUNNING
   start() {
     if (this.status !== RoundStatus.BETTING) {
-      throw new Error("Round can only start from BETTING status");
+      throw new Error("A rodada só pode começar a partir do status de APOSTAS");
     }
     this.status = RoundStatus.RUNNING;
     this.startedAt = new Date();
@@ -31,7 +31,7 @@ export class Round {
   // Finaliza a rodada com o crash
   crash() {
     if (this.status !== RoundStatus.RUNNING) {
-      throw new Error("Round can only crash from RUNNING status");
+      throw new Error("A rodada só pode crashar a partir do status de EXECUÇÃO");
     }
     this.status = RoundStatus.CRASHED;
     this.crashedAt = new Date();
@@ -40,7 +40,7 @@ export class Round {
   // Finaliza o processamento da rodada
   finish() {
     if (this.status !== RoundStatus.CRASHED) {
-      throw new Error("Round can only be finished after CRASHED status");
+      throw new Error("A rodada só pode ser finalizada após o status de CRASHED");
     }
     this.status = RoundStatus.FINISHED;
   }
