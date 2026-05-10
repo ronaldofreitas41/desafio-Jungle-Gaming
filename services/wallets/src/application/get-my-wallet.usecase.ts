@@ -17,7 +17,7 @@ export class GetMyWalletUseCase {
     const wallet = await this.walletRepository.findByUserId(userId);
 
     // Regra de aplicação: se não existir, lança erro 404
-    if (!wallet) throw new NotFoundException("Wallet not found");
+    if (!wallet) throw new NotFoundException("Carteira não encontrada");
 
     return wallet;
   }

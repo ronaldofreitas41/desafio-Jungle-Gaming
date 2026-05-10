@@ -7,7 +7,7 @@ import { JwtAuthGuard } from "@/infrastructure/auth/jwt.guard";
 
 // O Controller é a porta de entrada HTTP.
 
-@Controller("wallet")
+@Controller("wallets")
 export class WalletController {
   // Injeta os use cases, não o repository diretamente.
   // O controller não sabe como os dados são buscados ou salvos.

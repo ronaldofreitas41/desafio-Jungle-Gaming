@@ -17,7 +17,7 @@ export class Wallet {
   // Método de domínio: lógica de negócio de debitar saldo
   // A regra "não pode debitar mais do que tem" vive AQUI, não no controller
   debit(amount: bigint) {
-    if (amount > this.balance) throw new Error("Insufficient balance");
+    if (amount > this.balance) throw new Error("Saldo insuficiente");
     this.balance -= amount;
   }
 }
