@@ -4,11 +4,9 @@
 
 set -e
 
-echo "🔄 Executando Prisma migrate deploy..."
-bunx prisma migrate deploy
+echo "Executando Prisma migrate deploy..."
+bun prisma migrate deploy
 
-echo "🔄 Gerando Prisma Client..."
-bunx prisma generate
 
-echo "🚀 Iniciando Wallets Service..."
+echo "Iniciando Wallets Service..."
 exec bun run src/main.ts
