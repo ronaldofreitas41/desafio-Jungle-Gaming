@@ -43,12 +43,12 @@ interface GameState {
   clearLiveBets: () => void
   setIsPlacingBet: (value: boolean) => void
   setIsCashingOut: (value: boolean) => void
-  updateBalance: (newBalance: number) => void
+  updateBalance: (newBalance: bigint) => void
   logout: () => void
 }
 
 export const useGameStore = create<GameState>((set) => ({
-  // Initial state
+  // ... (keeping other states as they are)
   user: null,
   isAuthenticated: false,
   wallet: null,

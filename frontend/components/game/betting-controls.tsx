@@ -12,20 +12,20 @@ import { toast } from 'sonner'
 import { cn } from '@/lib/utils'
 
 // Format cents to BRL
-function formatCurrency(cents: number): string {
+function formatCurrency(cents: bigint | number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
-  }).format(cents / 100)
+  }).format(Number(cents) / 100)
 }
 
 // Parse input to cents
-function parseToCents(value: string): number {
+function parseToCents(value: string): bigint {
   const parsed = parseFloat(value.replace(',', '.'))
-  return isNaN(parsed) ? 0 : Math.round(parsed * 100)
+  return isNaN(parsed) ? 0n : BigInt(Math.round(parsed * 100))
 }
 
-const QUICK_AMOUNTS = [100, 500, 1000, 2500, 5000, 10000] // in cents
+const QUICK_AMOUNTS = [100n, 500n, 1000n, 2500n, 5000n, 10000n] // in cents
 
 export function BettingControls() {
   const {
@@ -41,43 +41,39 @@ export function BettingControls() {
     setCurrentBet,
     updateBalance
   } = useGameStore()
-  
+
   const [betAmount, setBetAmount] = useState('')
   const [autoCashOut, setAutoCashOut] = useState('')
-  
+
   const canBet = status === 'betting' && isAuthenticated && !currentBet && !isPlacingBet
   const canCashOut = status === 'running' && currentBet?.status === 'pending' && !isCashingOut
-  
+
   const handlePlaceBet = useCallback(async () => {
     const amountCents = parseToCents(betAmount)
-    
-    // Validations
-    if (amountCents < 100) {
+
+    // Validações de entrada
+    if (amountCents < 100n) {
       toast.error('Aposta mínima é R$ 1,00')
       return
     }
-    
-    if (amountCents > 100000) {
-      toast.error('Aposta máxima é R$ 1.000,00')
-      return
-    }
-    
+
+    // Valida se o saldo é suficiente
     if (wallet && amountCents > wallet.balance) {
       toast.error('Saldo insuficiente')
       return
     }
-    
-    setIsPlacingBet(true)
-    
+
+    setIsPlacingBet(true) // Indica que a aposta está sendo processada
+
     try {
       const bet = await apiService.placeBet(amountCents)
       setCurrentBet(bet)
-      
+
       // Update balance locally (will be synced via WebSocket)
       if (wallet) {
         updateBalance(wallet.balance - amountCents)
       }
-      
+
       toast.success(`Aposta de ${formatCurrency(amountCents)} realizada!`)
       setBetAmount('')
     } catch (error) {
@@ -86,23 +82,24 @@ export function BettingControls() {
       setIsPlacingBet(false)
     }
   }, [betAmount, wallet, setIsPlacingBet, setCurrentBet, updateBalance])
-  
+
+  // Lógica de Cash Out manual
   const handleCashOut = useCallback(async () => {
     if (!currentBet) return
-    
-    setIsCashingOut(true)
-    
+
+    setIsCashingOut(true) // Indica que o saque está sendo processado
+
     try {
       const result = await apiService.cashOut()
       setCurrentBet(result)
-      
-      // Update balance locally
+
+      // Atualiza o saldo localmente para feedback imediato
       if (wallet && result.profit) {
         updateBalance(wallet.balance + currentBet.amount + result.profit)
       }
-      
+
       toast.success(
-        `Cash out em ${multiplier.toFixed(2)}x! Ganho: ${formatCurrency(result.profit || 0)}`
+        `Saque realizado em ${multiplier.toFixed(2)}x! Ganho: ${formatCurrency(result.profit || 0)}`
       )
     } catch (error) {
       toast.error(error instanceof Error ? error.message : 'Erro ao fazer cash out')
@@ -110,15 +107,17 @@ export function BettingControls() {
       setIsCashingOut(false)
     }
   }, [currentBet, multiplier, wallet, setIsCashingOut, setCurrentBet, updateBalance])
-  
-  const handleQuickAmount = (amount: number) => {
-    setBetAmount((amount / 100).toFixed(2).replace('.', ','))
+
+  // Define valor rápido de aposta
+  const handleQuickAmount = (amount: bigint) => {
+    setBetAmount((Number(amount) / 100).toFixed(2).replace('.', ','))
   }
-  
-  const potentialWin = currentBet 
-    ? currentBet.amount * multiplier 
-    : parseToCents(betAmount) * (multiplier || 1)
-  
+
+  // Calcula ganho potencial em tempo real
+  const potentialWin = currentBet
+    ? Number(currentBet.amount) * multiplier
+    : Number(parseToCents(betAmount)) * (multiplier || 1)
+
   return (
     <Card className="bg-card border-border">
       <CardHeader className="pb-3">
@@ -137,7 +136,7 @@ export function BettingControls() {
           </div>
         ) : (
           <>
-            {/* Bet Amount Input */}
+            {/* Input de Valor da Aposta */}
             <div className="space-y-2">
               <Label htmlFor="bet-amount">Valor da Aposta (R$)</Label>
               <Input
@@ -150,8 +149,8 @@ export function BettingControls() {
                 className="font-mono text-lg h-12"
               />
             </div>
-            
-            {/* Quick Amount Buttons */}
+
+            {/* Botões de Valores Rápidos */}
             <div className="grid grid-cols-3 gap-2">
               {QUICK_AMOUNTS.map((amount) => (
                 <Button
@@ -166,8 +165,8 @@ export function BettingControls() {
                 </Button>
               ))}
             </div>
-            
-            {/* Auto Cash Out (Bônus) */}
+
+            {/* Auto Cash Out (Opcional) */}
             <div className="space-y-2">
               <Label htmlFor="auto-cashout">Auto Cash Out (opcional)</Label>
               <div className="flex gap-2">
@@ -183,8 +182,8 @@ export function BettingControls() {
                 <span className="flex items-center text-muted-foreground">x</span>
               </div>
             </div>
-            
-            {/* Potential Win Display */}
+
+            {/* Exibição de Ganho Potencial */}
             {(currentBet || parseToCents(betAmount) > 0) && (
               <div className="bg-secondary/50 rounded-lg p-3">
                 <div className="flex justify-between items-center">
@@ -193,13 +192,13 @@ export function BettingControls() {
                     "font-mono font-bold",
                     status === 'running' ? "text-crash-green" : "text-foreground"
                   )}>
-                    {formatCurrency(Math.round(potentialWin))}
+                    {formatCurrency(BigInt(Math.round(potentialWin)))}
                   </span>
                 </div>
               </div>
             )}
-            
-            {/* Action Buttons */}
+
+            {/* Botões de Ação Dinâmicos */}
             <div className="space-y-2">
               {!currentBet ? (
                 <Button
@@ -241,25 +240,25 @@ export function BettingControls() {
                   ) : (
                     <>
                       <HandCoins className="w-5 h-5 mr-2" />
-                      CASH OUT - {formatCurrency(Math.round(potentialWin))}
+                      CASH OUT - {formatCurrency(BigInt(Math.round(potentialWin)))}
                     </>
                   )}
                 </Button>
               ) : (
                 <div className={cn(
                   "w-full h-14 flex items-center justify-center rounded-lg font-bold",
-                  currentBet.status === 'won' 
-                    ? "bg-crash-green/20 text-crash-green" 
+                  currentBet.status === 'won'
+                    ? "bg-crash-green/20 text-crash-green"
                     : "bg-destructive/20 text-destructive"
                 )}>
-                  {currentBet.status === 'won' 
-                    ? `🎉 Você ganhou ${formatCurrency(currentBet.profit || 0)}!` 
+                  {currentBet.status === 'won'
+                    ? `🎉 Você ganhou ${formatCurrency(currentBet.profit || 0n)}!`
                     : '💥 Você perdeu!'}
                 </div>
               )}
             </div>
-            
-            {/* Current Bet Info */}
+
+            {/* Info da Aposta Atual */}
             {currentBet && (
               <div className="text-sm text-muted-foreground text-center">
                 Aposta atual: {formatCurrency(currentBet.amount)}

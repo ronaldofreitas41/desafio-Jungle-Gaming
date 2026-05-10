@@ -82,7 +82,12 @@ export function useWebSocket() {
     
     // New bet placed
     const unsubBetPlaced = wsService.on('bet:placed', (data: unknown) => {
-      const bet = data as Bet
+      const payload = data as any
+      const bet: Bet = {
+        ...payload,
+        amount: BigInt(payload.amount),
+        profit: payload.profit ? BigInt(payload.profit) : undefined
+      }
       addLiveBet(bet)
       
       // If it's our bet
@@ -96,13 +101,16 @@ export function useWebSocket() {
       const payload = data as { 
         betId: string; 
         playerId: string; 
+        playerName: string;
         multiplier: number; 
-        profit: number 
+        profit: number | string | bigint
       }
+      
+      const profit = BigInt(payload.profit)
       
       updateLiveBet(payload.betId, {
         cashedOutAt: payload.multiplier,
-        profit: payload.profit,
+        profit: profit,
         status: 'won'
       })
       
@@ -113,7 +121,7 @@ export function useWebSocket() {
           setCurrentBet({
             ...currentBet,
             cashedOutAt: payload.multiplier,
-            profit: payload.profit,
+            profit: profit,
             status: 'won'
           })
         }

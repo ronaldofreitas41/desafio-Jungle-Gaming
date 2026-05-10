@@ -10,23 +10,31 @@ import { Label } from '@/components/ui/label'
 import { Shield, ArrowLeft, CheckCircle2, XCircle, Calculator, Hash, Key, Dice1 } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Simulated provably fair verification
-function verifyCrashPoint(serverSeed: string, clientSeed: string, nonce: number): number {
-  // This is a simplified example. Real implementation would use HMAC-SHA256
-  const combined = `${serverSeed}:${clientSeed}:${nonce}`
-  let hash = 0
-  for (let i = 0; i < combined.length; i++) {
-    const char = combined.charCodeAt(i)
-    hash = ((hash << 5) - hash) + char
-    hash = hash & hash
-  }
-  
-  // Convert hash to crash point (simplified algorithm)
-  const e = Math.pow(2, 52)
-  const h = Math.abs(hash) % e
-  const crashPoint = Math.floor((100 * e - h) / (e - h)) / 100
-  
-  return Math.max(1, Math.min(crashPoint, 100))
+// Real provably fair verification using HMAC-SHA256
+async function verifyCrashPoint(serverSeed: string, clientSeed: string, nonce: number): Promise<number> {
+  const encoder = new TextEncoder();
+  const keyData = encoder.encode(serverSeed);
+  const msgData = encoder.encode(`${clientSeed}:${nonce}`);
+
+  const key = await crypto.subtle.importKey(
+    'raw',
+    keyData,
+    { name: 'HMAC', hash: 'SHA-256' },
+    false,
+    ['sign']
+  );
+
+  const signature = await crypto.subtle.sign('HMAC', key, msgData);
+  const hashArray = Array.from(new Uint8Array(signature));
+  const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+
+  // Use the first 13 characters (52 bits) of the hash
+  const h = parseInt(hashHex.substring(0, 13), 16);
+  const e = Math.pow(2, 52);
+
+  const crashPoint = Math.floor((100 * e - h) / (e - h)) / 100;
+
+  return Math.max(1, crashPoint);
 }
 
 export default function ProvablyFairPage() {
@@ -35,32 +43,40 @@ export default function ProvablyFairPage() {
   const [nonce, setNonce] = useState('')
   const [expectedCrash, setExpectedCrash] = useState('')
   const [result, setResult] = useState<{ verified: boolean; calculated: number } | null>(null)
-  
-  const handleVerify = () => {
+  const [isVerifying, setIsVerifying] = useState(false)
+
+  const handleVerify = async () => {
     if (!serverSeed || !clientSeed || !nonce) {
       return
     }
-    
-    const calculatedCrash = verifyCrashPoint(serverSeed, clientSeed, parseInt(nonce))
-    const expected = parseFloat(expectedCrash)
-    
-    setResult({
-      verified: Math.abs(calculatedCrash - expected) < 0.01,
-      calculated: calculatedCrash
-    })
+
+    setIsVerifying(true)
+    try {
+      const calculatedCrash = await verifyCrashPoint(serverSeed, clientSeed, parseInt(nonce))
+      const expected = parseFloat(expectedCrash)
+
+      setResult({
+        verified: Math.abs(calculatedCrash - expected) < 0.01,
+        calculated: calculatedCrash
+      })
+    } catch (error) {
+      console.error('Verification error:', error)
+    } finally {
+      setIsVerifying(false)
+    }
   }
-  
+
   return (
     <div className="min-h-screen bg-background flex flex-col">
       <Header />
-      
+
       <main className="flex-1 container py-8">
         {/* Back button */}
         <Link href="/" className="inline-flex items-center gap-2 text-muted-foreground hover:text-foreground mb-6 transition-colors">
           <ArrowLeft className="w-4 h-4" />
           Voltar ao jogo
         </Link>
-        
+
         <div className="max-w-4xl mx-auto space-y-8">
           {/* Header */}
           <div className="text-center">
@@ -69,11 +85,11 @@ export default function ProvablyFairPage() {
             </div>
             <h1 className="text-3xl font-bold mb-2">Provably Fair</h1>
             <p className="text-muted-foreground max-w-2xl mx-auto">
-              Nosso sistema de Provably Fair garante que cada rodada é justa e verificável. 
+              Nosso sistema de Provably Fair garante que cada rodada é justa e verificável.
               Você pode verificar independentemente o resultado de qualquer rodada.
             </p>
           </div>
-          
+
           {/* How it works */}
           <Card>
             <CardHeader>
@@ -93,7 +109,7 @@ export default function ProvablyFairPage() {
                     Antes da rodada, uma server seed e client seed são combinadas para gerar o crash point.
                   </p>
                 </div>
-                
+
                 <div className="flex flex-col items-center text-center p-4">
                   <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mb-3">
                     <Hash className="w-6 h-6 text-primary" />
@@ -103,7 +119,7 @@ export default function ProvablyFairPage() {
                     O hash da server seed é exibido antes da rodada começar, provando que o resultado já foi determinado.
                   </p>
                 </div>
-                
+
                 <div className="flex flex-col items-center text-center p-4">
                   <div className="w-12 h-12 rounded-full bg-secondary flex items-center justify-center mb-3">
                     <Dice1 className="w-6 h-6 text-primary" />
@@ -116,7 +132,7 @@ export default function ProvablyFairPage() {
               </div>
             </CardContent>
           </Card>
-          
+
           {/* Verification Tool */}
           <Card>
             <CardHeader>
@@ -140,7 +156,7 @@ export default function ProvablyFairPage() {
                     className="font-mono text-sm"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="client-seed">Client Seed</Label>
                   <Input
@@ -151,7 +167,7 @@ export default function ProvablyFairPage() {
                     className="font-mono text-sm"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="nonce">Nonce (Número da Rodada)</Label>
                   <Input
@@ -163,7 +179,7 @@ export default function ProvablyFairPage() {
                     className="font-mono"
                   />
                 </div>
-                
+
                 <div className="space-y-2">
                   <Label htmlFor="expected-crash">Crash Point Esperado</Label>
                   <Input
@@ -175,12 +191,12 @@ export default function ProvablyFairPage() {
                   />
                 </div>
               </div>
-              
-              <Button onClick={handleVerify} className="w-full">
+
+              <Button onClick={handleVerify} className="w-full" disabled={isVerifying}>
                 <Shield className="w-4 h-4 mr-2" />
-                Verificar
+                {isVerifying ? 'Verificando...' : 'Verificar'}
               </Button>
-              
+
               {result && (
                 <div className={cn(
                   "p-4 rounded-lg flex items-center gap-3",
@@ -206,7 +222,7 @@ export default function ProvablyFairPage() {
               )}
             </CardContent>
           </Card>
-          
+
           {/* Algorithm explanation */}
           <Card>
             <CardHeader>
@@ -215,7 +231,7 @@ export default function ProvablyFairPage() {
             <CardContent>
               <div className="bg-secondary/50 rounded-lg p-4 font-mono text-sm overflow-x-auto">
                 <pre className="text-muted-foreground">
-{`// Pseudo-código do algoritmo Provably Fair
+                  {`// Pseudo-código do algoritmo Provably Fair
 
 function calculateCrashPoint(serverSeed, clientSeed, nonce) {
   // 1. Combinar seeds com nonce
@@ -235,12 +251,12 @@ function calculateCrashPoint(serverSeed, clientSeed, nonce) {
 }`}
                 </pre>
               </div>
-              
+
               <div className="mt-4 p-4 bg-primary/5 rounded-lg">
                 <h4 className="font-semibold mb-2">House Edge</h4>
                 <p className="text-sm text-muted-foreground">
-                  O jogo possui uma margem da casa de 4%, o que significa que, estatisticamente, 
-                  para cada R$ 100 apostados, R$ 4 vão para a casa. O crash point esperado médio 
+                  O jogo possui uma margem da casa de 4%, o que significa que, estatisticamente,
+                  para cada R$ 100 apostados, R$ 4 vão para a casa. O crash point esperado médio
                   é aproximadamente 0.96x.
                 </p>
               </div>
@@ -248,7 +264,7 @@ function calculateCrashPoint(serverSeed, clientSeed, nonce) {
           </Card>
         </div>
       </main>
-      
+
       <Footer />
     </div>
   )

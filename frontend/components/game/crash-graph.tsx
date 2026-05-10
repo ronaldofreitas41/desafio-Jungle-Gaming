@@ -10,6 +10,7 @@ interface Point {
   time: number
 }
 
+// Componente responsável por renderizar o gráfico animado do multiplicador
 export function CrashGraph() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -21,7 +22,7 @@ export function CrashGraph() {
   const [countdown, setCountdown] = useState<number>(0)
   const [displayMultiplier, setDisplayMultiplier] = useState(1.00)
   
-  // Animate multiplier display
+  // Anima o multiplicador no centro do gráfico
   useEffect(() => {
     if (status === 'running' || status === 'crashed') {
       setDisplayMultiplier(multiplier)
@@ -30,7 +31,7 @@ export function CrashGraph() {
     }
   }, [multiplier, status])
   
-  // Countdown timer
+  // Gerencia o temporizador da fase de apostas
   useEffect(() => {
     if (status !== 'betting' || !bettingEndsAt) {
       setCountdown(0)
@@ -48,7 +49,7 @@ export function CrashGraph() {
     return () => clearInterval(interval)
   }, [status, bettingEndsAt])
   
-  // Calculate dynamic axis ranges based on current data
+  // Calcula dinamicamente o zoom dos eixos X e Y conforme o multiplicador cresce
   const getAxisRanges = useCallback((points: Point[], currentMult: number) => {
     if (points.length === 0) {
       return { minX: 0, maxX: 10, minY: 1, maxY: 2 }
@@ -57,20 +58,18 @@ export function CrashGraph() {
     const maxTime = points[points.length - 1]?.time || 10
     const maxMult = Math.max(currentMult, ...points.map(p => p.y))
     
-    // Dynamic X range - keep expanding as time progresses
-    // Start with 10s window, then expand
+    // Escala X dinâmica - expande conforme o tempo passa
     const baseTimeWindow = 10
     const maxX = Math.max(baseTimeWindow, Math.ceil(maxTime / 5) * 5 + 5)
     
-    // Dynamic Y range - keep some headroom above current multiplier
-    // Start at 2x, expand as multiplier grows
+    // Escala Y dinâmica - mantém espaço acima do multiplicador atual
     const headroom = Math.max(0.5, maxMult * 0.3)
     const maxY = Math.max(2, Math.ceil((maxMult + headroom) * 2) / 2)
     
     return { minX: 0, maxX, minY: 1, maxY }
   }, [])
   
-  // Generate nice axis tick values
+  // Gera os valores dos ticks nos eixos (números de referência)
   const getAxisTicks = useCallback((min: number, max: number, count: number, isMultiplier: boolean) => {
     const range = max - min
     const step = range / count
@@ -84,7 +83,7 @@ export function CrashGraph() {
     return ticks
   }, [])
   
-  // Draw the graph
+  // Função principal de desenho do Canvas
   const draw = useCallback(() => {
     const canvas = canvasRef.current
     const container = containerRef.current
@@ -392,7 +391,7 @@ export function CrashGraph() {
             </div>
             {status === 'crashed' && (
               <div className="text-xl md:text-2xl text-destructive mt-4 animate-pulse">
-                CRASHED!
+                CRASHOU!
               </div>
             )}
           </div>

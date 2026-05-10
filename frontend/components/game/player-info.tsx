@@ -15,11 +15,11 @@ import { cn } from '@/lib/utils'
 import { redirect } from 'next/navigation'
 
 // Format cents to BRL
-function formatCurrency(cents: number): string {
+function formatCurrency(cents: bigint | number): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
     currency: 'BRL'
-  }).format(cents / 100)
+  }).format(Number(cents) / 100)
 }
 
 export function PlayerInfo() {
