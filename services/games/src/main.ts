@@ -30,7 +30,7 @@ async function bootstrap(): Promise<void> {
 
   const port = process.env.PORT || 4001;
   await app.listen(port, "0.0.0.0");
-  
+
   console.log(`Games service is running on port ${port}`);
 }
 

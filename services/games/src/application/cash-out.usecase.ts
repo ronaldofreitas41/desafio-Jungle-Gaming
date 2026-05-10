@@ -1,6 +1,8 @@
-import { Injectable, BadRequestException, NotFoundException } from "@nestjs/common";
+import { Injectable, BadRequestException, NotFoundException, Inject } from "@nestjs/common";
 import { RoundRepository, BetRepository } from "../domain/game.repository";
 import { RoundStatus } from "../domain/round.entity";
+import { ClientProxy } from "@nestjs/microservices";
+import { GameGateway } from "../presentation/game.gateway";
 import { Bet, BetStatus } from "../domain/bet.entity";
 
 // Use Case responsável pelo saque (cash out) do jogador durante a rodada.
@@ -9,40 +11,54 @@ export class CashOutUseCase {
   constructor(
     private readonly roundRepository: RoundRepository,
     private readonly betRepository: BetRepository,
-  ) {}
+    private readonly gameGateway: GameGateway,
+    @Inject('WALLET_SERVICE') private readonly walletClient: ClientProxy,
+  ) { }
 
+  // Executa o saque manual de uma aposta ativa
   async execute(playerId: string, currentMultiplier: number): Promise<Bet> {
-    // 1. Busca a rodada atual
+    // Busca rodada em execução
     const round = await this.roundRepository.findCurrent();
     if (!round || round.status !== RoundStatus.RUNNING) {
-      throw new BadRequestException("No active round running for cash out");
+      throw new BadRequestException("Nenhuma rodada ativa em execução para saque");
     }
 
-    // 2. Busca a aposta do jogador na rodada atual
+    // Busca a aposta ativa do jogador nesta rodada
     const bet = await this.betRepository.findByPlayerAndRound(playerId, round.id);
     if (!bet) {
-      throw new NotFoundException("No bet found for this user in the current round");
+      throw new NotFoundException("Nenhuma aposta encontrada para este usuário na rodada atual");
     }
 
-    // 3. Valida se a aposta ainda está pendente
+    // Verifica se a aposta ainda não foi finalizada
     if (bet.status !== BetStatus.PENDING) {
-      throw new BadRequestException("Bet is already settled");
+      throw new BadRequestException("A aposta já foi finalizada");
     }
 
-    // 4. Valida se o multiplicador de saque é válido (não crashou ainda)
+    // Bloqueia saque se o multiplicador solicitado for maior que o crash point
     if (currentMultiplier >= round.crashPoint) {
-       // Em um cenário real, se o pedido de cashout chegar depois do crash, ele perde.
-       throw new BadRequestException("Round already crashed");
+      throw new BadRequestException("A rodada já crashou");
     }
 
-    // 5. Realiza o cashout na entidade de domínio
-    bet.cashOut(currentMultiplier);
+    bet.cashOut(currentMultiplier); // Atualiza status e calcula payout
 
-    // 6. Persiste a alteração
-    const updatedBet = await this.betRepository.update(bet);
+    // Envia evento de crédito para o serviço de carteira
+    this.walletClient.emit('wallet.credit', {
+      playerId,
+      amount: bet.payout!.toString(),
+      referenceId: bet.id,
+      metadata: { roundId: round.id, multiplier: currentMultiplier.toString() }
+    });
 
-    // TODO: Disparar evento para o Wallet Service creditar os ganhos (payout).
+    // Notifica todos os jogadores via WebSocket
+    this.gameGateway.broadcast('bet:cashout', {
+      betId: bet.id,
+      roundId: round.id,
+      playerId,
+      multiplier: currentMultiplier,
+      profit: Number(bet.payout! - bet.amount),
+    });
 
-    return updatedBet;
+    // Salva a aposta atualizada
+    return this.betRepository.update(bet);
   }
 }
