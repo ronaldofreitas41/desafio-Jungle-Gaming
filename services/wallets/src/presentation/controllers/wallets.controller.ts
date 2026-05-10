@@ -38,7 +38,7 @@ export class WalletController {
 
     // Mapeia a entidade para o DTO de resposta
     // O DTO controla exatamente o que é exposto na API
-    return { id: wallet.id, balance: wallet.balance };
+    return { id: wallet.id, balance: wallet.balance.toString() };
   }
 
   // GET /wallet/health — endpoint de saúde para monitoramento se a API está rodando
