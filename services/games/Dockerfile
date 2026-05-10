@@ -9,9 +9,9 @@ RUN bun install --no-cache
 COPY . .
 
 # Gera o client do prisma localmente
-RUN bunx prisma generate
+RUN bun prisma generate
 
-RUN chmod +x ./entrypoint.sh
+RUN sed -i 's/\r$//' ./entrypoint.sh && chmod +x ./entrypoint.sh
 
 EXPOSE 4001
 
