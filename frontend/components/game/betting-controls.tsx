@@ -101,12 +101,12 @@ export function BettingControls() {
     setIsCashingOut(true) // Indica que o saque está sendo processado
 
     try {
-      const result = await apiService.cashOut()
+      const result = await apiService.cashOut(multiplier)
       setCurrentBet(result)
 
       // Atualiza o saldo localmente para feedback imediato
-      if (wallet && result.profit) {
-        updateBalance(wallet.balance + currentBet.amount + result.profit)
+      if (wallet && result.payout) {
+        updateBalance(wallet.balance + result.payout)
       }
 
       toast.success(

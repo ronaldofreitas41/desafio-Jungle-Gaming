@@ -88,17 +88,29 @@ class ApiService {
   
   // Envia uma nova aposta para a rodada atual
   async placeBet(amount: bigint): Promise<Bet> {
-    return this.fetch<Bet>('/games/bet', {
+    const data = await this.fetch<any>('/games/bet', {
       method: 'POST',
       body: JSON.stringify({ amount: Number(amount) }),
     })
+    return { ...data, amount: BigInt(data.amount) }
   }
   
   // Realiza o saque (cash out) da aposta ativa
-  async cashOut(): Promise<Bet> {
-    return this.fetch<Bet>('/games/bet/cashout', {
+  async cashOut(multiplier: number): Promise<Bet> {
+    const data = await this.fetch<any>('/games/bet/cashout', {
       method: 'POST',
+      body: JSON.stringify({ multiplier }),
     })
+    
+    const payout = BigInt(data.payout || 0)
+    const amount = BigInt(data.amount || 0)
+    
+    return { 
+      ...data, 
+      amount, 
+      payout,
+      profit: payout - amount
+    }
   }
 }
 

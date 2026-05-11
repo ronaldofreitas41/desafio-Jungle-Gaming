@@ -14,6 +14,7 @@ import { RoundsHistoryResponseDto } from "../dtos/response/rounds-history-respon
 import { BetsMeResponseDto } from "../dtos/response/bets-me-response.dto";
 import { RoundsVerifyResponseDto } from "../dtos/response/rounds-verify-response.dto";
 import { GameEngineService } from "@/application/services/game-engine.service";
+import { RoundStatus } from "@/domain/round.entity";
 
 // O GamesController gerencia todas as requisições HTTP relacionadas ao jogo.
 @Controller("games")
@@ -42,17 +43,17 @@ export class GamesController {
 
     return {
       id: output.round.id,
-      status: output.round.status,
+      status: output.round.status.toLowerCase() as any,
       currentMultiplier: this.gameEngineService.getCurrentMultiplier(),
       startedAt: output.round.startedAt,
-      bettingEndsAt: output.round.status === 'BETTING' 
+      bettingEndsAt: output.round.status === RoundStatus.BETTING 
         ? new Date(output.round.createdAt.getTime() + 10000) 
         : undefined,
       bets: output.bets.map((b) => ({
         playerId: b.playerId,
         username: b.username,
-        amount: Number(b.amount) / 100, // Converte centavos para decimal
-        status: b.status,
+        amount: Number(b.amount), // Mantém em centavos
+        status: b.status === 'CASHED_OUT' ? 'won' : b.status.toLowerCase() as any,
         cashoutMultiplier: b.cashoutMultiplier,
       })),
     };
@@ -67,7 +68,7 @@ export class GamesController {
     const rounds = await this.getRoundHistoryUseCase.execute(page, limit);
     return rounds.map((r): RoundsHistoryResponseDto => ({
       id: r.id,
-      status: r.status,
+      status: r.status.toLowerCase() as any,
       crashPoint: r.crashPoint,
       createdAt: r.createdAt,
     }));
@@ -91,10 +92,10 @@ export class GamesController {
     return bets.map((b): BetsMeResponseDto => ({
       id: b.id,
       roundId: b.roundId,
-      amount: Number(b.amount) / 100,
-      status: b.status,
+      amount: Number(b.amount), // Mantém em centavos
+      status: b.status === 'CASHED_OUT' ? 'won' : b.status.toLowerCase() as any,
       cashoutMultiplier: b.cashoutMultiplier,
-      payout: b.payout ? Number(b.payout) / 100 : 0,
+      payout: b.payout ? Number(b.payout) : 0, // Mantém em centavos
       createdAt: b.createdAt,
     }));
   }
@@ -115,8 +116,8 @@ export class GamesController {
 
     return {
       id: bet.id,
-      amount: Number(bet.amount) / 100,
-      status: bet.status,
+      amount: Number(bet.amount), // Mantém em centavos
+      status: bet.status.toLowerCase() as any,
     };
   }
 
@@ -128,9 +129,9 @@ export class GamesController {
 
     return {
       id: bet.id,
-      status: bet.status,
+      status: 'won',
       cashoutMultiplier: bet.cashoutMultiplier,
-      payout: Number(bet.payout) / 100,
+      payout: Number(bet.payout), // Mantém em centavos
     };
   }
 }

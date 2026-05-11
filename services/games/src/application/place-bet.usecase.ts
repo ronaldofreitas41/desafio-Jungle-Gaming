@@ -1,6 +1,6 @@
 import { Injectable, BadRequestException, ConflictException } from "@nestjs/common";
 import { RoundRepository, BetRepository } from "../domain/game.repository";
-import { Bet } from "../domain/bet.entity";
+import { Bet, BetStatus } from "../domain/bet.entity";
 import { RoundStatus } from "../domain/round.entity";
 import { randomUUID } from "crypto";
 import { Inject } from "@nestjs/common";
@@ -82,7 +82,7 @@ export class PlaceBetUseCase {
       playerId,
       playerName: username,
       amount: Number(amount),
-      status: 'pending',
+      status: BetStatus.PENDING.toLowerCase() as any,
       createdAt: bet.createdAt.toISOString(),
       autoCashoutMultiplier: bet.autoCashoutMultiplier,
     });

@@ -54,6 +54,7 @@ export class CashOutUseCase {
       betId: bet.id,
       roundId: round.id,
       playerId,
+      status: 'won',
       multiplier: currentMultiplier,
       profit: Number(bet.payout! - bet.amount),
     });

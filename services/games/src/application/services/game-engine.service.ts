@@ -136,6 +136,7 @@ export class GameEngineService implements OnModuleInit {
               betId: bet.id,
               roundId: round.id,
               playerId: bet.playerId,
+              status: 'won',
               multiplier: bet.autoCashoutMultiplier,
               profit: Number(bet.payout! - bet.amount),
             });
