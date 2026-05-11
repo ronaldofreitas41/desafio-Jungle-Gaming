@@ -1,13 +1,12 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useEffect, useRef } from 'react'
 import { useGameStore } from '@/stores/game-store'
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card'
 import { ScrollArea } from '@/components/ui/scroll-area'
-import { Users, CheckCircle2 } from 'lucide-react'
+import { Users, CheckCircle2, XCircle } from 'lucide-react'
 import { cn } from '@/lib/utils'
 
-// Formata para Real (handles both number and bigint)
 function formatCurrency(cents: number | bigint): string {
   return new Intl.NumberFormat('pt-BR', {
     style: 'currency',
@@ -15,56 +14,81 @@ function formatCurrency(cents: number | bigint): string {
   }).format(Number(cents) / 100)
 }
 
-// Componente que exibe as apostas em tempo real da rodada atual
 export function LiveBets() {
-  const { liveBets: storeLiveBets, user, currentRound } = useGameStore()
+  const { liveBets: storeLiveBets, user, currentRound, status, multiplier } = useGameStore()
 
-  // Gerar apostas fictícias (bots) para preencher a lista e dar "vida" ao jogo
-  // Regenera sempre que uma nova rodada começa
+  // Gera apostas fictícias apenas uma vez por rodada
   const fakeBets = useMemo(() => {
-    // Quantidade aleatória de 1 a 30 pessoas
-    const count = Math.floor(Math.random() * 30) + 1;
-
+    const count = Math.floor(Math.random() * 30) + 1
     const names = [
       'Gabriel', 'Ana', 'Lucas', 'Mariana', 'Pedro', 'Julia', 'Bruno', 'Beatriz', 'Felipe', 'Camila',
       'Thiago', 'Larissa', 'Vinícius', 'Isabela', 'Gustavo', 'Letícia', 'Rafael', 'Amanda', 'Leonardo', 'Fernanda',
       'Matheus', 'Bianca', 'Rodrigo', 'Carolina', 'Guilherme', 'Priscila', 'André', 'Patrícia', 'Diego', 'Vanessa'
-    ];
+    ]
 
     return Array.from({ length: count }).map((_, i) => {
-      // Valor aleatório entre 1,00 R$ (100 centavos) até 2000,00 R$ (200000 centavos)
-      const amount = BigInt(Math.floor(Math.random() * (200000 - 100 + 1)) + 100);
-
-      // Simular alguns saques aleatórios para parecer real (apenas visual)
-      const hasCashedOut = Math.random() > 0.7;
-      const cashedOutAt = hasCashedOut ? Number((Math.random() * 3 + 1.1).toFixed(2)) : undefined;
-      const profit = cashedOutAt ? BigInt(Math.floor(Number(amount) * (cashedOutAt - 1))) : 0n;
+      const amount = BigInt(Math.floor(Math.random() * (200000 - 100 + 1)) + 100)
+      // Cada bot tem um multiplicador alvo aleatório entre 1.1x e 5x para saque automático
+      const cashOutTarget = Number((Math.random() * 4 + 1.1).toFixed(2))
 
       return {
         id: `fake-${i}`,
         playerId: `bot-${i}`,
         playerName: names[i % names.length] + ' ' + (Math.floor(Math.random() * 90) + 10),
         amount,
-        cashedOutAt,
-        profit,
-        status: hasCashedOut ? 'won' : 'pending',
+        cashOutTarget, // ← multiplicador alvo do bot
+        cashedOutAt: undefined as number | undefined,
+        profit: 0n as bigint,
+        status: 'pending' as string,
         createdAt: new Date().toISOString(),
-      };
-    });
-  }, [currentRound?.id]);
+      }
+    })
+  }, [currentRound?.id])
 
-  // Combina as apostas reais com as geradas aleatoriamente
-  const liveBets = [...storeLiveBets, ...fakeBets];
+  // Ref para guardar o estado mutável dos bots sem re-renders desnecessários
+  const fakeBetsStateRef = useRef(fakeBets.map(b => ({ ...b })))
 
-  // Ordena as apostas: quem já sacou primeiro, depois por valor
+  // Reseta os bots quando a rodada muda
+  useEffect(() => {
+    fakeBetsStateRef.current = fakeBets.map(b => ({ ...b }))
+  }, [fakeBets])
+
+  // Simula saques automáticos dos bots conforme o multiplicador sobe
+  const simulatedBets = useMemo(() => {
+    if (status === 'crashed') {
+      // Rodada crashou — quem não sacou perde
+      return fakeBetsStateRef.current.map(bet => {
+        if (bet.cashedOutAt) return bet
+        return { ...bet, status: 'lost' }
+      })
+    }
+
+    if (status === 'running') {
+      // Saca os bots que atingiram o multiplicador alvo
+      return fakeBetsStateRef.current.map(bet => {
+        if (bet.cashedOutAt) return bet
+        if (multiplier >= bet.cashOutTarget) {
+          const cashedOutAt = bet.cashOutTarget
+          const profit = BigInt(Math.floor(Number(bet.amount) * (cashedOutAt - 1)))
+          const updated = { ...bet, cashedOutAt, profit, status: 'won' }
+          // Persiste o saque no ref para não reverter no próximo tick
+          const idx = fakeBetsStateRef.current.findIndex(b => b.id === bet.id)
+          if (idx !== -1) fakeBetsStateRef.current[idx] = updated
+          return updated
+        }
+        return bet
+      })
+    }
+
+    return fakeBetsStateRef.current
+  }, [multiplier, status, currentRound?.id])
+
+  const liveBets = [...storeLiveBets, ...simulatedBets]
+
+  // Ordena: sacados primeiro, depois perdedores, depois pendentes — por valor
   const sortedBets = [...liveBets].sort((a, b) => {
-    const aHasCashedOut = !!a.cashedOutAt
-    const bHasCashedOut = !!b.cashedOutAt
-
-    if (aHasCashedOut && !bHasCashedOut) return -1
-    if (!aHasCashedOut && bHasCashedOut) return 1
-
-    // Convert BigInt to number for sorting comparison
+    if (a.cashedOutAt && !b.cashedOutAt) return -1
+    if (!a.cashedOutAt && b.cashedOutAt) return 1
     return Number(b.amount) - Number(a.amount)
   })
 
@@ -96,6 +120,12 @@ export function LiveBets() {
               {sortedBets.map((bet) => {
                 const isCurrentUser = user?.id === bet.playerId
                 const hasCashedOut = !!bet.cashedOutAt
+                const hasLost = status === 'crashed' && !hasCashedOut
+
+                // Valor atual da aposta multiplicado pelo multiplicador atual
+                const currentValue = status === 'running' && !hasCashedOut
+                  ? BigInt(Math.floor(Number(bet.amount) * multiplier))
+                  : null
 
                 return (
                   <div
@@ -103,16 +133,17 @@ export function LiveBets() {
                     className={cn(
                       "flex items-center justify-between px-4 py-3 transition-colors",
                       isCurrentUser && "bg-primary/5",
-                      hasCashedOut && "bg-crash-green/5"
+                      hasCashedOut && "bg-green-500/5",
+                      hasLost && "bg-red-500/5",
                     )}
                   >
                     <div className="flex items-center gap-3">
-                      {/* Avatar baseado nas iniciais do jogador */}
+                      {/* Avatar */}
                       <div className={cn(
                         "w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold",
-                        hasCashedOut
-                          ? "bg-crash-green/20 text-crash-green"
-                          : "bg-secondary text-secondary-foreground"
+                        hasCashedOut && "bg-green-500/20 text-green-500",
+                        hasLost && "bg-red-500/20 text-red-500",
+                        !hasCashedOut && !hasLost && "bg-secondary text-secondary-foreground"
                       )}>
                         {bet.playerName.slice(0, 2).toUpperCase()}
                       </div>
@@ -120,7 +151,9 @@ export function LiveBets() {
                       <div>
                         <div className={cn(
                           "font-medium text-sm",
-                          isCurrentUser && "text-primary"
+                          isCurrentUser && "text-primary",
+                          hasLost && "text-red-500",   // ← vermelho para quem perdeu
+                          hasCashedOut && "text-green-500"
                         )}>
                           {bet.playerName}
                           {isCurrentUser && (
@@ -135,16 +168,30 @@ export function LiveBets() {
 
                     <div className="text-right">
                       {hasCashedOut ? (
+                        // Sacou — mostra multiplicador e lucro
                         <div className="flex items-center gap-1">
-                          <CheckCircle2 className="w-4 h-4 text-crash-green" />
+                          <CheckCircle2 className="w-4 h-4 text-green-500" />
                           <div>
-                            <div className="text-sm font-mono text-crash-green">
+                            <div className="text-sm font-mono text-green-500">
                               {bet.cashedOutAt?.toFixed(2)}x
                             </div>
-                            <div className="text-xs text-crash-green">
+                            <div className="text-xs text-green-500">
                               +{formatCurrency(bet.profit || 0n)}
                             </div>
                           </div>
+                        </div>
+                      ) : hasLost ? (
+                        // Crashou sem sacar — mostra perda
+                        <div className="flex items-center gap-1">
+                          <XCircle className="w-4 h-4 text-red-500" />
+                          <div className="text-sm font-mono text-red-500">
+                            -{formatCurrency(bet.amount)}
+                          </div>
+                        </div>
+                      ) : currentValue ? (
+                        // Rodada a correr — mostra valor atual em tempo real
+                        <div className="text-sm font-mono text-yellow-400">
+                          {formatCurrency(currentValue)}
                         </div>
                       ) : (
                         <div className="text-sm text-muted-foreground">
