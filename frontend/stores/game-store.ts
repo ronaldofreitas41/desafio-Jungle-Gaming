@@ -81,9 +81,12 @@ export const useGameStore = create<GameState>((set) => ({
   
   setCurrentBet: (bet) => set({ currentBet: bet }),
   
-  addToHistory: (history) => set((state) => ({
-    roundHistory: [history, ...state.roundHistory].slice(0, 20)
-  })),
+  addToHistory: (history) => set((state) => {
+    if (state.roundHistory.some(r => r.id === history.id)) return state;
+    return {
+      roundHistory: [history, ...state.roundHistory].slice(0, 20)
+    };
+  }),
   
   setRoundHistory: (history) => set({ roundHistory: history }),
   

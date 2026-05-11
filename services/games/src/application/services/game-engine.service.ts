@@ -13,6 +13,7 @@ export class GameEngineService implements OnModuleInit {
   private gameLoopInterval: NodeJS.Timer | null = null; // Intervalo do loop de execução
   private readonly TICK_RATE = 100; // Taxa de atualização (100ms)
   private readonly BETTING_DURATION = 10000; // Duração da fase de apostas (10s)
+  private isEngineRunning = false; // Flag para evitar múltiplos loops
 
   constructor(
     private readonly roundRepository: RoundRepository,
@@ -23,6 +24,8 @@ export class GameEngineService implements OnModuleInit {
   ) { }
 
   async onModuleInit() {
+    if (this.isEngineRunning) return;
+    this.isEngineRunning = true;
     this.runEngine(); // Inicia o motor ao carregar o módulo
   }
 
@@ -38,6 +41,13 @@ export class GameEngineService implements OnModuleInit {
 
   // Gerencia a fase inicial de apostas
   private async handleBettingPhase() {
+    // Verifica se já existe uma rodada ativa para evitar duplicidade
+    const existing = await this.roundRepository.findCurrent();
+    if (existing) {
+      console.log(`Rodada ${existing.id} já está ativa (${existing.status}). Pulando fase de criação.`);
+      return;
+    }
+
     console.log('Iniciando fase de APOSTAS');
 
     const serverSeed = this.provablyFairService.generateServerSeed();
