@@ -19,18 +19,12 @@ export default function GamePage() {
   const [isLoading, setIsLoading] = useState(true)
   const { user, isAuthenticated } = useGameStore()
   const {
-    setWallet,
     setRoundHistory,
     addLiveBet,
     setCurrentRound,
     setStatus,
-    setMultiplier,
-    setBettingEndsAt,
-    clearLiveBets,
-    setCurrentBet,
-    addToHistory,
-    updateLiveBet
-  } = useGameStore()
+    setMultiplier
+    } = useGameStore()
 
   // Conecta ao WebSocket e gerencia autenticação
   useWebSocket()
@@ -70,23 +64,6 @@ export default function GamePage() {
           // Usa dados mockados caso a API falhe
           setRoundHistory(generateMockHistory())
         }
-
-        // Busca a carteira se estiver autenticado
-        if (user?.accessToken) {
-          try {
-            const wallet = await apiService.getWallet()
-            setWallet(wallet)
-          } catch {
-            // Tenta criar uma carteira se ela não existir
-            try {
-              const newWallet = await apiService.createWallet()
-              setWallet(newWallet)
-            } catch {
-              // Carteira mockada para demonstração (fallback)
-              setWallet({ id: '1', playerId: user.id, balance: 100000n }) // R$ 1000,00 em centavos
-            }
-          }
-        }
       } catch (error) {
         console.error('Erro ao buscar dados iniciais:', error)
       } finally {
@@ -95,7 +72,7 @@ export default function GamePage() {
     }
 
     fetchInitialData()
-  }, [user?.accessToken, setWallet, setRoundHistory, addLiveBet, setCurrentRound, setStatus, setMultiplier])
+  }, [setRoundHistory, addLiveBet, setCurrentRound, setStatus, setMultiplier])
 
   // Exibe skeleton loader enquanto carrega
   if (isLoading) {

@@ -50,39 +50,50 @@ export function BettingControls() {
 
   const handlePlaceBet = useCallback(async () => {
     const amountCents = parseToCents(betAmount)
-
-    // Validações de entrada
+  
+    // Apenas validação básica de entrada
     if (amountCents < 100n) {
       toast.error('Aposta mínima é R$ 1,00')
       return
     }
-
-    // Valida se o saldo é suficiente
-    if (wallet && amountCents > wallet.balance) {
-      toast.error('Saldo insuficiente')
-      return
-    }
-
-    setIsPlacingBet(true) // Indica que a aposta está sendo processada
-
+  
+    console.log('Parsed bet amount in cents:', amountCents)
+    console.log('Current wallet balance in cents:', wallet?.balance)
+  
+    setIsPlacingBet(true)
+  
     try {
       const bet = await apiService.placeBet(amountCents)
+  
       setCurrentBet(bet)
-
-      // Update balance locally (will be synced via WebSocket)
+  
+      // Atualização otimista do saldo
+      // Só acontece se existir wallet local
       if (wallet) {
-        updateBalance(wallet.balance - amountCents)
+        updateBalance(BigInt(wallet.balance) - amountCents)
       }
-
-      toast.success(`Aposta de ${formatCurrency(amountCents)} realizada!`)
+  
+      toast.success(
+        `Aposta de ${formatCurrency(amountCents)} realizada!`
+      )
+  
       setBetAmount('')
     } catch (error) {
-      toast.error(error instanceof Error ? error.message : 'Erro ao fazer aposta')
+      toast.error(
+        error instanceof Error
+          ? error.message
+          : 'Erro ao fazer aposta'
+      )
     } finally {
       setIsPlacingBet(false)
     }
-  }, [betAmount, wallet, setIsPlacingBet, setCurrentBet, updateBalance])
-
+  }, [
+    betAmount,
+    wallet,
+    setIsPlacingBet,
+    setCurrentBet,
+    updateBalance
+  ])
   // Lógica de Cash Out manual
   const handleCashOut = useCallback(async () => {
     if (!currentBet) return

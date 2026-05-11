@@ -181,8 +181,41 @@ export function useAuth() {
     const storedUser = authService.getStoredUser()
     if (storedUser && !authService.isTokenExpired(storedUser.accessToken)) {
       setUser(storedUser)
+      apiService.setAccessToken(storedUser.accessToken)
     }
   }, [setUser])
+  
+  // Load wallet when user is authenticated
+  useEffect(() => {
+    if (user?.accessToken) {
+      apiService.setAccessToken(user.accessToken)
+      console.log('[useAuth] Carregando carteira para usuário:', user.id)
+      
+      const loadWallet = async () => {
+        try {
+          console.log('[useAuth] Tentando buscar carteira...')
+          const wallet = await apiService.getWallet()
+          console.log('[useAuth] Carteira carregada:', wallet)
+          setWallet(wallet)
+        } catch (error) {
+          console.error('[useAuth] Erro ao buscar carteira:', error)
+          // Try to create wallet if it doesn't exist
+          try {
+            console.log('[useAuth] Tentando criar carteira...')
+            const newWallet = await apiService.createWallet()
+            console.log('[useAuth] Carteira criada:', newWallet)
+            setWallet(newWallet)
+          } catch (error) {
+            console.error('Erro ao criar/carregar carteira:', error)
+            // Set a default wallet so user can still play
+            setWallet({ id: 'temp', playerId: user.id, balance: 100000n })
+          }
+        }
+      }
+      
+      loadWallet()
+    }
+  }, [user?.accessToken, setWallet])
   
   const login = useCallback(() => {
     authService.login()
@@ -196,6 +229,7 @@ export function useAuth() {
   const handleCallback = useCallback(async (code: string, state: string) => {
     const authUser = await authService.handleCallback(code, state)
     setUser(authUser)
+    apiService.setAccessToken(authUser.accessToken)
     return authUser
   }, [setUser])
   
