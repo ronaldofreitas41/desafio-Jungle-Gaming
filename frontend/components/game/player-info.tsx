@@ -41,10 +41,7 @@ export function PlayerInfo() {
     try {
       // Adiciona um valor fixo de R$ 500 para simplificar o desafio
       const updatedWallet = await apiService.deposit(500)
-      setWallet({
-        ...updatedWallet,
-        balance: BigInt(updatedWallet.balance)
-      })
+      setWallet(updatedWallet)
       toast({
         title: "Sucesso!",
         description: "R$ 500,00 foram adicionados ao seu saldo.",

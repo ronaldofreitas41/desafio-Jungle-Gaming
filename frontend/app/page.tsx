@@ -75,12 +75,12 @@ export default function GamePage() {
         if (user?.accessToken) {
           try {
             const wallet = await apiService.getWallet()
-            setWallet({ ...wallet, balance: BigInt(wallet.balance) })
+            setWallet(wallet)
           } catch {
             // Tenta criar uma carteira se ela não existir
             try {
               const newWallet = await apiService.createWallet()
-              setWallet({ ...newWallet, balance: BigInt(newWallet.balance) })
+              setWallet(newWallet)
             } catch {
               // Carteira mockada para demonstração (fallback)
               setWallet({ id: '1', playerId: user.id, balance: 100000n }) // R$ 1000,00 em centavos

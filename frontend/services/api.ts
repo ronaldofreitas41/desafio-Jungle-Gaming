@@ -40,20 +40,23 @@ class ApiService {
 
   // Cria uma carteira para o usuário autenticado
   async createWallet(): Promise<Wallet> {
-    return this.fetch<Wallet>('/wallets', { method: 'POST' })
+    const data = await this.fetch<any>('/wallets', { method: 'POST' })
+    return { ...data, balance: BigInt(data.balance) }
   }
   
   // Busca a carteira do usuário atual
   async getWallet(): Promise<Wallet> {
-    return this.fetch<Wallet>('/wallets/me')
+    const data = await this.fetch<any>('/wallets/me')
+    return { ...data, balance: BigInt(data.balance) }
   }
 
   // Adiciona saldo à carteira do usuário autenticado
   async deposit(amount: number): Promise<Wallet> {
-    return this.fetch<Wallet>('/wallets/deposit', {
+    const data = await this.fetch<any>('/wallets/deposit', {
       method: 'POST',
       body: JSON.stringify({ amount }),
     })
+    return { ...data, balance: BigInt(data.balance) }
   }
   
   // --- Serviço de Jogo (Games) ---
