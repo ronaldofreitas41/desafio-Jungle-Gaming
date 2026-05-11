@@ -9,11 +9,11 @@ import { ClientProxy } from '@nestjs/microservices';
 
 @Injectable()
 export class GameEngineService implements OnModuleInit {
-  private currentMultiplier = 1.0; // Multiplicador atual da rodada
+  private currentMultiplier = 1.0;           // Multiplicador atual da rodada
   private gameLoopInterval: NodeJS.Timer | null = null; // Intervalo do loop de execução
-  private readonly TICK_RATE = 100; // Taxa de atualização (100ms)
-  private readonly BETTING_DURATION = 10000; // Duração da fase de apostas (10s)
-  private isEngineRunning = false; // Flag para evitar múltiplos loops
+  private readonly TICK_RATE = 100;           // Taxa de atualização em ms (100ms = 10 ticks/s)
+  private readonly BETTING_DURATION = 10000;  // Duração da fase de apostas (10s)
+  private isEngineRunning = false;            // Flag para evitar múltiplos loops simultâneos
 
   constructor(
     private readonly roundRepository: RoundRepository,
@@ -23,78 +23,105 @@ export class GameEngineService implements OnModuleInit {
     @Inject('WALLET_SERVICE') private readonly walletClient: ClientProxy,
   ) { }
 
+  // Iniciado automaticamente pelo NestJS quando o módulo carrega
   async onModuleInit() {
     if (this.isEngineRunning) return;
     this.isEngineRunning = true;
-    this.runEngine(); // Inicia o motor ao carregar o módulo
+    this.runEngine();
   }
 
-  // Loop infinito que gerencia as fases do jogo
+  // Loop infinito que gerencia as 3 fases do jogo em sequência
   private async runEngine() {
     while (true) {
       await this.handleBettingPhase();
       await this.handleRunningPhase();
       await this.handleCrashPhase();
+      // Pausa de 3s entre rodadas para o frontend mostrar o resultado
       await new Promise((resolve) => setTimeout(resolve, 3000));
     }
   }
 
-  // Gerencia a fase inicial de apostas
+  // Cria uma nova rodada ou retoma uma existente após restart do serviço
   private async handleBettingPhase() {
-    // Verifica se já existe uma rodada ativa para evitar duplicidade
     let round = await this.roundRepository.findCurrent();
 
     if (round) {
       console.log(`Rodada ${round.id} já está ativa (${round.status}).`);
-      if (round.status !== RoundStatus.BETTING) {
-        return; // Já passou da fase de apostas
+
+      if (round.status === RoundStatus.RUNNING) {
+        // Rodada já estava a correr antes do restart — handleRunningPhase vai tratar
+        return;
       }
-      
-      // Notifica novamente para garantir que novos clientes recebam o estado inicial
+
+      if (round.status === RoundStatus.CRASHED) {
+        // Rodada já crashou antes do restart — handleCrashPhase vai finalizar
+        return;
+      }
+
+      // Status BETTING — calcula o tempo RESTANTE para não reiniciar o contador
+      const bettingEndsAt = new Date(round.createdAt.getTime() + this.BETTING_DURATION);
+      const remaining = bettingEndsAt.getTime() - Date.now();
+
+      // Notifica clientes que se conectaram após o início da fase de apostas
       this.gameGateway.broadcast('round:start', {
         roundId: round.id,
         hash: round.serverSeedHash,
-        bettingEndsAt: new Date(round.createdAt.getTime() + this.BETTING_DURATION).toISOString(),
+        bettingEndsAt: bettingEndsAt.toISOString(),
       });
-    } else {
-      console.log('Iniciando fase de APOSTAS');
 
-      const serverSeed = this.provablyFairService.generateServerSeed();
-      const serverSeedHash = this.provablyFairService.hashServerSeed(serverSeed);
-      const clientSeed = 'default_client_seed';
-      const nonce = Math.floor(Date.now() / 1000);
+      // Aguarda apenas o tempo restante (não os 10s completos)
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
 
-      const crashPoint = this.provablyFairService.calculateCrashPoint(serverSeed, clientSeed, nonce);
-
-      round = new Round(
-        randomUUID(),
-        RoundStatus.BETTING,
-        crashPoint,
-        serverSeed,
-        serverSeedHash
-      );
-
-      await this.roundRepository.create(round);
-
-      const bettingEndsAt = new Date(Date.now() + this.BETTING_DURATION).toISOString();
-
-      // Notifica início da rodada e tempo restante para apostar
-      this.gameGateway.broadcast('round:start', {
-        roundId: round.id,
-        hash: serverSeedHash,
-        bettingEndsAt,
-      });
+      // Transita para RUNNING e notifica fim das apostas
+      round.start();
+      await this.roundRepository.update(round);
+      this.gameGateway.broadcast('betting:end', { roundId: round.id });
+      return;
     }
 
+    // Nenhuma rodada ativa — cria uma nova
+    console.log('Iniciando fase de APOSTAS');
+
+    // Gera os dados criptográficos para o Provably Fair
+    const serverSeed = this.provablyFairService.generateServerSeed();
+    const serverSeedHash = this.provablyFairService.hashServerSeed(serverSeed);
+    const clientSeed = 'default_client_seed';
+    const nonce = Math.floor(Date.now() / 1000);
+
+    // O crash point é calculado ANTES das apostas — garantia do Provably Fair
+    const crashPoint = this.provablyFairService.calculateCrashPoint(serverSeed, clientSeed, nonce);
+
+    round = new Round(
+      randomUUID(),
+      RoundStatus.BETTING,
+      crashPoint,
+      serverSeed,
+      serverSeedHash,
+    );
+
+    await this.roundRepository.create(round);
+
+    const bettingEndsAt = new Date(Date.now() + this.BETTING_DURATION).toISOString();
+
+    // Notifica todos os clientes — hash é revelada agora, seed só após o crash
+    this.gameGateway.broadcast('round:start', {
+      roundId: round.id,
+      hash: serverSeedHash,
+      bettingEndsAt,
+    });
+
+    // Aguarda os 10 segundos de apostas
     await new Promise((resolve) => setTimeout(resolve, this.BETTING_DURATION));
 
-    // Inicia a rodada
+    // Transita para RUNNING
     round.start();
     await this.roundRepository.update(round);
     this.gameGateway.broadcast('betting:end', { roundId: round.id });
   }
 
-  // Gerencia a subida do multiplicador em tempo real
+  // Sobe o multiplicador até atingir o crash point
   private async handleRunningPhase() {
     const round = await this.roundRepository.findCurrent();
     if (!round || round.status !== RoundStatus.RUNNING) return;
@@ -104,34 +131,44 @@ export class GameEngineService implements OnModuleInit {
 
     return new Promise<void>((resolve) => {
       this.gameLoopInterval = setInterval(async () => {
-        // Curva de crescimento
+        // Curva de crescimento exponencial — começa devagar e acelera
         const increment = 0.01 * Math.pow(this.currentMultiplier, 0.5);
         this.currentMultiplier += increment;
 
+        // Arredonda para 2 casas decimais para o frontend
         const currentMult = Math.floor(this.currentMultiplier * 100) / 100;
 
-        // Envia atualização do multiplicador via WebSocket
+        // Emite o multiplicador atual para todos os clientes via WebSocket
         this.gameGateway.broadcast('multiplier:tick', {
           roundId: round.id,
           multiplier: currentMult,
         });
 
-        // Lógica de Auto-Cashout: verifica se algum jogador atingiu o alvo
+        // Verifica se algum jogador atingiu o seu multiplicador alvo
         const bets = await this.betRepository.findByRoundId(round.id);
         for (const bet of bets) {
-          if (bet.status === BetStatus.PENDING && bet.autoCashoutMultiplier && currentMult >= bet.autoCashoutMultiplier) {
+          if (
+            bet.status === BetStatus.PENDING &&
+            bet.autoCashoutMultiplier &&
+            currentMult >= bet.autoCashoutMultiplier
+          ) {
+            // Processa o cashout automático na entidade
             bet.cashOut(bet.autoCashoutMultiplier);
             await this.betRepository.update(bet);
 
-            // Credita saldo na carteira via RabbitMQ
+            // Credita o ganho na carteira via RabbitMQ (assíncrono)
             this.walletClient.emit('wallet.credit', {
               playerId: bet.playerId,
               amount: bet.payout!.toString(),
               referenceId: bet.id,
-              metadata: { roundId: round.id, multiplier: bet.autoCashoutMultiplier.toString(), type: 'auto' }
+              metadata: {
+                roundId: round.id,
+                multiplier: bet.autoCashoutMultiplier.toString(),
+                type: 'auto',
+              },
             });
 
-            // Notifica o cashout automático para todos
+            // Notifica todos os clientes do cashout automático
             this.gameGateway.broadcast('bet:cashout', {
               betId: bet.id,
               roundId: round.id,
@@ -143,37 +180,36 @@ export class GameEngineService implements OnModuleInit {
           }
         }
 
-        // Verifica se atingiu o ponto de crash
         if (this.currentMultiplier >= round.crashPoint) {
           clearInterval(this.gameLoopInterval!);
+          this.gameLoopInterval = null;
           resolve();
         }
       }, this.TICK_RATE);
     });
   }
 
-  // Finaliza a rodada e liquida apostas perdidas
+  // Finaliza a rodada, liquida apostas perdidas e revela a seed
   private async handleCrashPhase() {
     const round = await this.roundRepository.findCurrent();
     if (!round) return;
 
+    // Transita para CRASHED se ainda estava RUNNING
     if (round.status === RoundStatus.RUNNING) {
-      console.log(`Finalizando EXECUÇÃO da rodada ${round.id}. Crash point atingido: ${round.crashPoint}x`);
+      console.log(`CRASHOU em ${round.crashPoint}x`);
       round.crash();
       await this.roundRepository.update(round);
-      console.log(`Status da rodada ${round.id} alterado para CRASHED`);
     }
 
     if (round.status === RoundStatus.CRASHED) {
-      console.log(`Emitindo evento round:crash para rodada ${round.id}`);
-      // Revela a semente original para auditoria
+      // Revela a seed original — jogadores podem agora verificar o Provably Fair
       this.gameGateway.broadcast('round:crash', {
         roundId: round.id,
         crashPoint: round.crashPoint,
-        seed: round.serverSeed,
+        seed: round.serverSeed, // seed revelada após o crash
       });
 
-      // Marca todas as apostas restantes como perdidas
+      // Marca todas as apostas pendentes como perdidas e notifica
       const bets = await this.betRepository.findByRoundId(round.id);
       for (const bet of bets) {
         if (bet.status === BetStatus.PENDING) {
@@ -182,12 +218,13 @@ export class GameEngineService implements OnModuleInit {
         }
       }
 
-      // Fecha a rodada definitivamente
+      // Fecha a rodada definitivamente — não aparece mais no findCurrent()
       round.finish();
       await this.roundRepository.update(round);
     }
   }
 
+  // Exposto para o controller GET /games/rounds/current
   getCurrentMultiplier(): number {
     return this.currentMultiplier;
   }

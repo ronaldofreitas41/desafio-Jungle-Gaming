@@ -83,12 +83,15 @@ export const useGameStore = create<GameState>((set) => ({
   
   addToHistory: (history) => set((state) => {
     if (state.roundHistory.some(r => r.id === history.id)) return state;
+    const sanitizedHistory = { ...history, crashPoint: Number(history.crashPoint) };
     return {
-      roundHistory: [history, ...state.roundHistory].slice(0, 20)
+      roundHistory: [sanitizedHistory, ...state.roundHistory].slice(0, 20)
     };
   }),
   
-  setRoundHistory: (history) => set({ roundHistory: history }),
+  setRoundHistory: (history) => set({ 
+    roundHistory: history.map(h => ({ ...h, crashPoint: Number(h.crashPoint) })) 
+  }),
   
   addLiveBet: (bet) => set((state) => ({
     liveBets: [...state.liveBets, bet]
