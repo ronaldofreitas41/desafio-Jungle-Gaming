@@ -298,9 +298,19 @@ export function CrashGraph() {
     }
     
     if (status === 'running' && startTimeRef.current === 0) {
-      startTimeRef.current = Date.now()
+      const startedAt = currentRound?.startedAt ? new Date(currentRound.startedAt).getTime() : Date.now()
+      startTimeRef.current = startedAt
+      
+      // Se estamos entrando no meio da rodada, adiciona o ponto inicial (0, 1.0)
+      if (pointsRef.current.length === 0) {
+        pointsRef.current.push({
+          x: 0,
+          y: 1.0,
+          time: 0
+        })
+      }
     }
-  }, [status])
+  }, [status, currentRound?.startedAt])
   
   // Add points to curve based on time
   useEffect(() => {
