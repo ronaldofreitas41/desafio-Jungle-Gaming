@@ -28,8 +28,8 @@ export class WalletController {
     // req.user.id vem do seu guard de autenticação (JWT, session, etc.)
     const wallet = await this.createWallet.execute(req.user.id);
 
-    // Retorna apenas o id — não expõe dados desnecessários
-    return { id: wallet.id };
+    // Retorna o id e o saldo inicial
+    return { id: wallet.id, balance: wallet.balance.toString() };
   }
 
   // GET /wallet/me — retorna a carteira do usuário autenticado
