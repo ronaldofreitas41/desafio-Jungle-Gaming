@@ -16,13 +16,11 @@ class ApiService {
     endpoint: string, 
     options: RequestInit = {}
   ): Promise<T> {
-    const headers: HeadersInit = {
-      'Content-Type': 'application/json',
-      ...options.headers,
-    }
+    const headers = new Headers(options.headers)
+    headers.set('Content-Type', 'application/json')
     
     if (this.accessToken) {
-      headers['Authorization'] = `Bearer ${this.accessToken}`
+      headers.set('Authorization', `Bearer ${this.accessToken}`)
     }
     
     const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -54,7 +52,12 @@ class ApiService {
 
   // Busca a rodada atual e o estado do multiplicador
   async getCurrentRound(): Promise<Round> {
-    return this.fetch<Round>('/games/rounds/current')
+    const data = await this.fetch<any>('/games/rounds/current')
+    return {
+      ...data,
+      status: data.status.toLowerCase(),
+      multiplier: data.currentMultiplier || 1.0
+    }
   }
   
   // Busca o histórico global de rodadas (pontos de crash passados)

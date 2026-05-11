@@ -13,6 +13,7 @@ import { CurrentRoundResponseDto } from "../dtos/response/rounds-current-respons
 import { RoundsHistoryResponseDto } from "../dtos/response/rounds-history-response.dto";
 import { BetsMeResponseDto } from "../dtos/response/bets-me-response.dto";
 import { RoundsVerifyResponseDto } from "../dtos/response/rounds-verify-response.dto";
+import { GameEngineService } from "@/application/services/game-engine.service";
 
 // O GamesController gerencia todas as requisições HTTP relacionadas ao jogo.
 @Controller("games")
@@ -24,6 +25,7 @@ export class GamesController {
     private readonly placeBetUseCase: PlaceBetUseCase,
     private readonly cashOutUseCase: CashOutUseCase,
     private readonly verifyRoundUseCase: VerifyRoundUseCase,
+    private readonly gameEngineService: GameEngineService,
   ) {}
 
   // Rota para verificar se a API está rodando
@@ -41,8 +43,11 @@ export class GamesController {
     return {
       id: output.round.id,
       status: output.round.status,
-      currentMultiplier: 1.0, // Placeholder: o motor de jogo calcularia isso
+      currentMultiplier: this.gameEngineService.getCurrentMultiplier(),
       startedAt: output.round.startedAt,
+      bettingEndsAt: output.round.status === 'BETTING' 
+        ? new Date(output.round.createdAt.getTime() + 10000) 
+        : undefined,
       bets: output.bets.map((b) => ({
         playerId: b.playerId,
         username: b.username,

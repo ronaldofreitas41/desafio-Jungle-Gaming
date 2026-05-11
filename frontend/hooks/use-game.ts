@@ -4,6 +4,7 @@ import { useEffect, useCallback, useRef } from 'react'
 import { useGameStore } from '@/stores/game-store'
 import { wsService } from '@/services/websocket'
 import { authService } from '@/services/auth'
+import { apiService } from '@/services/api'
 import type { Bet, RoundHistory } from '@/lib/types'
 
 export function useWebSocket() {
@@ -20,14 +21,43 @@ export function useWebSocket() {
     setCurrentRound,
   } = useGameStore()
   
-  const connectedRef = useRef(false)
-  
   useEffect(() => {
-    if (connectedRef.current) return
-    
     const token = user?.accessToken
     wsService.connect(token)
-    connectedRef.current = true
+
+    // Sincronizar estado inicial
+    const syncInitialState = async () => {
+      try {
+        const round = await apiService.getCurrentRound()
+        if (round) {
+          setCurrentRound(round)
+          if (round.status === 'betting' && round.bettingEndsAt) {
+            setBettingEndsAt(new Date(round.bettingEndsAt).getTime())
+          }
+          
+          // Sincronizar apostas vivas
+          if (round.bets) {
+            clearLiveBets()
+            round.bets.forEach(bet => {
+              const formattedBet: Bet = {
+                ...bet,
+                amount: BigInt(bet.amount),
+                profit: bet.profit ? BigInt(bet.profit) : undefined
+              }
+              addLiveBet(formattedBet)
+              
+              if (user && bet.playerId === user.id) {
+                setCurrentBet(formattedBet)
+              }
+            })
+          }
+        }
+      } catch (error) {
+        console.error('[WebSocket] Erro ao sincronizar estado inicial:', error)
+      }
+    }
+
+    syncInitialState()
     
     // Round start - betting phase
     const unsubRoundStart = wsService.on('round:start', (data: unknown) => {

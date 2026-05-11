@@ -8,6 +8,7 @@ export interface Round {
   multiplier: number
   startedAt?: string
   endedAt?: string
+  bettingEndsAt?: string
   hash: string
   seed?: string
   bets: Bet[]

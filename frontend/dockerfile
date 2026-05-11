@@ -1,43 +1,58 @@
-# Build stage
-FROM node:20-alpine AS builder
+# Estágio 1: Instalar dependências
+FROM node:20-alpine AS deps
 
+# Adiciona compatibilidade com bibliotecas nativas (necessário para algumas dependências)
+RUN apk add --no-cache libc6-compat
 WORKDIR /app
 
-# Instalar pnpm
+# Instala o pnpm globalmente
 RUN npm install -g pnpm
 
-# Copiar arquivos de lock e package.json
+# Copia apenas os ficheiros de dependências para aproveitar o cache do Docker
 COPY package.json pnpm-lock.yaml ./
 
-# Instalar dependências
+# Instala as dependências respeitando o lockfile (garante versões consistentes)
 RUN pnpm install --frozen-lockfile
 
-# Copiar código fonte
-COPY . .
-
-# Build da aplicação
-RUN pnpm build
-
-# Runtime stage
-FROM node:20-alpine
-
+# Estágio 2: Compilar a aplicação
+FROM node:20-alpine AS builder
 WORKDIR /app
 
-# Instalar pnpm
+# Instala o pnpm novamente neste estágio
 RUN npm install -g pnpm
 
-# Copiar package.json
-COPY package.json pnpm-lock.yaml ./
+# Copia as dependências já instaladas do estágio anterior
+COPY --from=deps /app/node_modules ./node_modules
+COPY . .
 
-# Instalar apenas dependências de produção
-RUN pnpm install --frozen-lockfile --prod
+# Compila a aplicação Next.js para produção
+RUN pnpm build
 
-# Copiar build do stage anterior
-COPY --from=builder /app/.next ./.next
+# Estágio 3: Executar em produção
+FROM node:20-alpine AS runner
+WORKDIR /app
+
+ENV NODE_ENV=production
+
+# Segurança: cria um utilizador sem privilégios de root para executar a aplicação
+RUN addgroup --system --gid 1001 nodejs
+RUN adduser --system --uid 1001 nextjs
+
+# Copia os ficheiros públicos estáticos
 COPY --from=builder /app/public ./public
 
-# Expor porta
+# Copia apenas os ficheiros necessários para produção usando o output trace do Next.js
+# Isso reduz significativamente o tamanho da imagem final
+# Mais info: https://nextjs.org/docs/advanced-features/output-file-tracing
+COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+
+# Executa como utilizador sem privilégios
+USER nextjs
+
 EXPOSE 3000
 
-# Comando para iniciar
-CMD ["pnpm", "start"]
+ENV PORT=3000
+
+# server.js é gerado automaticamente pelo Next.js no modo standalone
+CMD ["node", "server.js"]
