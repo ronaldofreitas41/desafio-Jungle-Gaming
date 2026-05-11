@@ -47,6 +47,14 @@ class ApiService {
   async getWallet(): Promise<Wallet> {
     return this.fetch<Wallet>('/wallets/me')
   }
+
+  // Adiciona saldo à carteira do usuário autenticado
+  async deposit(amount: number): Promise<Wallet> {
+    return this.fetch<Wallet>('/wallets/deposit', {
+      method: 'POST',
+      body: JSON.stringify({ amount }),
+    })
+  }
   
   // --- Serviço de Jogo (Games) ---
 

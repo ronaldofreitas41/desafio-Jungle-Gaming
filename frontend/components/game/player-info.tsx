@@ -13,6 +13,9 @@ import { Wallet, LogIn, LogOut, User, ChevronDown, Loader2 } from 'lucide-react'
 import { useAuth } from '@/hooks/use-game'
 import { cn } from '@/lib/utils'
 import { redirect } from 'next/navigation'
+import { apiService } from '@/services/api'
+import { useToast } from '@/hooks/use-toast'
+import { useState } from 'react'
 
 // Format cents to BRL
 function formatCurrency(cents: bigint | number): string {
@@ -27,6 +30,35 @@ export function PlayerInfo() {
   
   const login =() => {
     redirect('/login')
+  }
+
+  const [isDepositing, setIsDepositing] = useState(false)
+  const { setWallet } = useGameStore()
+  const { toast } = useToast()
+
+  const handleDeposit = async () => {
+    setIsDepositing(true)
+    try {
+      // Adiciona um valor fixo de R$ 500 para simplificar o desafio
+      const updatedWallet = await apiService.deposit(500)
+      setWallet({
+        ...updatedWallet,
+        balance: BigInt(updatedWallet.balance)
+      })
+      toast({
+        title: "Sucesso!",
+        description: "R$ 500,00 foram adicionados ao seu saldo.",
+      })
+    } catch (error) {
+      console.error('Erro ao depositar:', error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível adicionar o saldo.",
+        variant: "destructive"
+      })
+    } finally {
+      setIsDepositing(false)
+    }
   }
   
   if (!isAuthenticated) {
@@ -52,6 +84,21 @@ export function PlayerInfo() {
           )}
         </span>
       </div>
+
+      <Button
+        variant="secondary"
+        size="sm"
+        onClick={handleDeposit}
+        disabled={isDepositing}
+        className="gap-2 bg-crash-green/20 hover:bg-crash-green/30 text-crash-green border-crash-green/30"
+      >
+        {isDepositing ? (
+          <Loader2 className="w-4 h-4 animate-spin" />
+        ) : (
+          <Wallet className="w-4 h-4" />
+        )}
+        <span>Depositar R$ 500</span>
+      </Button>
       
       {/* User Menu */}
       <DropdownMenu>
