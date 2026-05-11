@@ -43,9 +43,9 @@ export class PlaceBetUseCase {
     const balance = BigInt(walletData.balance);
 
     // Valida se o saldo é suficiente para a aposta
-    if (amount > balance) {
-      throw new BadRequestException(`Saldo insuficiente. Seu saldo atual é R$ ${(Number(balance) / 100).toFixed(2)}`);
-    }
+    // if (amount > balance) {
+    //   throw new BadRequestException(`Saldo insuficiente. Seu saldo atual é R$ ${(Number(balance) / 100).toFixed(2)}`);
+    // }
 
     // Impede múltiplas apostas do mesmo jogador na mesma rodada
     const existingBet = await this.betRepository.findByPlayerAndRound(playerId, round.id);

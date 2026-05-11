@@ -87,7 +87,7 @@ export class GamesController {
     @Query("page") page: number = 1,
     @Query("limit") limit: number = 10,
   ): Promise<BetsMeResponseDto[]> {
-    const bets = await this.getMyBetsUseCase.execute(req.user.sub, page, limit);
+    const bets = await this.getMyBetsUseCase.execute(req.user.id, page, limit);
     return bets.map((b): BetsMeResponseDto => ({
       id: b.id,
       roundId: b.roundId,
@@ -103,13 +103,13 @@ export class GamesController {
   @Post("bet")
   @UseGuards(JwtAuthGuard)
   async bet(@Req() req: any, @Body() dto: PlaceBetRequestDto) {
-    // Converte para centavos (bigint)
-    const amountBigInt = BigInt(Math.floor(dto.amount * 100));
+    // O cliente envia o valor já em centavos (inteiro), alinhado à carteira e ao place-bet.usecase
+    const amountBigInt = BigInt(Math.trunc(dto.amount));
     
     // req.user contém os dados do JWT (sub é o id do usuário no Keycloak)
     const bet = await this.placeBetUseCase.execute(
-        req.user.sub, 
-        req.user.preferred_username || "Player", 
+        req.user.id, 
+        req.user.username || "Player", 
         amountBigInt
     );
 
@@ -124,7 +124,7 @@ export class GamesController {
   @Post("bet/cashout")
   @UseGuards(JwtAuthGuard)
   async cashout(@Req() req: any, @Body() dto: CashOutRequestDto) {
-    const bet = await this.cashOutUseCase.execute(req.user.sub, dto.multiplier);
+    const bet = await this.cashOutUseCase.execute(req.user.id, dto.multiplier);
 
     return {
       id: bet.id,
