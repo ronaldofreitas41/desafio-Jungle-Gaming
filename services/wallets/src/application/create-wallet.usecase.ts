@@ -14,8 +14,7 @@ export class CreateWalletUseCase {
     const existing = await this.walletRepository.findByUserId(userId);
     if (existing) throw new ConflictException("Wallet already exists");
 
-    // Cria a entidade Wallet com saldo inicial 1000 (100000n = BigInt zero)
-    // A entidade é criada aqui na camada de aplicação, não no controller
+    // Cria a entidade Wallet com saldo inicial de 100000 centavos (R$ 1000,00)
     const wallet = new Wallet(randomUUID(), userId, 100000n);
 
     return this.walletRepository.create(wallet);
