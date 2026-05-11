@@ -138,26 +138,26 @@ export function VerifyRoundModal({ roundId, trigger }: VerifyRoundModalProps) {
               <div className="space-y-3">
                 <DataField
                   label="Hash"
-                  value={result.hash}
-                  onCopy={() => copyToClipboard(result.hash, 'hash')}
+                  value={result.hash || '-'}
+                  onCopy={() => copyToClipboard(result.hash || '', 'hash')}
                   copied={copied === 'hash'}
                 />
                 <DataField
                   label="Server Seed"
-                  value={result.serverSeed}
-                  onCopy={() => copyToClipboard(result.serverSeed, 'serverSeed')}
+                  value={result.serverSeed || '-'}
+                  onCopy={() => copyToClipboard(result.serverSeed || '', 'serverSeed')}
                   copied={copied === 'serverSeed'}
                 />
                 <DataField
                   label="Seed"
-                  value={result.seed}
-                  onCopy={() => copyToClipboard(result.seed, 'seed')}
+                  value={result.seed || '-'}
+                  onCopy={() => copyToClipboard(result.seed || '', 'seed')}
                   copied={copied === 'seed'}
                 />
                 <DataField
                   label="Nonce"
-                  value={result.nonce.toString()}
-                  onCopy={() => copyToClipboard(result.nonce.toString(), 'nonce')}
+                  value={result.nonce?.toString() || '0'}
+                  onCopy={() => copyToClipboard(result.nonce?.toString() || '0', 'nonce')}
                   copied={copied === 'nonce'}
                 />
               </div>

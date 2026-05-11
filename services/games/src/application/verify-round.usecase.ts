@@ -25,10 +25,12 @@ export class VerifyRoundUseCase {
     // Só permitimos ver a seed após o crash (fim da rodada) para evitar trapaças
     // No entanto, para fins didáticos e do desafio, retornamos o que está no banco.
     return {
-      id: round.id,
-      crashPoint: round.crashPoint,
+      roundId: round.id,
+      crashPoint: Number(round.crashPoint),
       serverSeed: round.serverSeed,
-      serverSeedHash: round.serverSeedHash,
+      hash: round.serverSeedHash,
+      seed: "N/A", // Não implementado no esquema atual
+      nonce: 0     // Não implementado no esquema atual
     };
   }
 }
