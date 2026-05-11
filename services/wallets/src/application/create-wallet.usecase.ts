@@ -7,16 +7,16 @@ import { randomUUID } from "crypto";
 // Cada use case tem uma única responsabilidade (Single Responsibility Principle).
 @Injectable()
 export class CreateWalletUseCase {
-  constructor(private readonly walletRepository: WalletRepository) {}
+  constructor(private readonly walletRepository: WalletRepository) { }
 
   async execute(userId: string): Promise<Wallet> {
     // Regra de negócio: um usuário só pode ter uma carteira
     const existing = await this.walletRepository.findByUserId(userId);
     if (existing) throw new ConflictException("Wallet already exists");
 
-    // Cria a entidade Wallet com saldo inicial zero (0n = BigInt zero)
+    // Cria a entidade Wallet com saldo inicial 1000 (100000n = BigInt zero)
     // A entidade é criada aqui na camada de aplicação, não no controller
-    const wallet = new Wallet(randomUUID(), userId, 0n);
+    const wallet = new Wallet(randomUUID(), userId, 100000n);
 
     return this.walletRepository.create(wallet);
   }

@@ -137,6 +137,8 @@
         "@prisma/client": "^7.8.0",
         "amqp-connection-manager": "^5.0.0",
         "amqplib": "^2.0.1",
+        "class-transformer": "^0.5.1",
+        "class-validator": "^0.15.1",
         "dotenv": "^17.4.2",
         "jwks-rsa": "^4.0.1",
         "microservices": "^0.1.0",

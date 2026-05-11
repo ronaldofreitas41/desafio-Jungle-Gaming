@@ -1,9 +1,12 @@
 import { Controller, Get, Post, Req, UseGuards } from "@nestjs/common";
 import { GetMyWalletUseCase } from "@/application/get-my-wallet.usecase";
 import { CreateWalletUseCase } from "@/application/create-wallet.usecase";
+import { CreditWalletUseCase } from "@/application/credit-wallet.usecase";
 import { WalletMeResponseDto } from "../dtos/wallet-me-response.dto";
+import { DepositDto } from "../dtos/deposit.dto";
 import { HealthCheckResponseDto } from "../dtos/health-check-response.dto";
 import { JwtAuthGuard } from "@/infrastructure/auth/jwt.guard";
+import { Body } from "@nestjs/common";
 
 // O Controller é a porta de entrada HTTP.
 
@@ -14,6 +17,7 @@ export class WalletController {
   constructor(
     private readonly getMyWallet: GetMyWalletUseCase,
     private readonly createWallet: CreateWalletUseCase,
+    private readonly creditWallet: CreditWalletUseCase,
   ) { }
 
   // POST /wallet — cria uma nova carteira para o usuário autenticado
@@ -38,6 +42,17 @@ export class WalletController {
 
     // Mapeia a entidade para o DTO de resposta
     // O DTO controla exatamente o que é exposto na API
+    return { id: wallet.id, balance: wallet.balance.toString() };
+  }
+
+  // POST /wallets/deposit — adiciona saldo à carteira do usuário autenticado
+  @Post("deposit")
+  @UseGuards(JwtAuthGuard)
+  async deposit(@Req() req: any, @Body() depositDto: DepositDto) {
+    // Converte o valor de R$ para centavos (BigInt)
+    const amountInCents = BigInt(Math.round(depositDto.amount * 100));
+    const wallet = await this.creditWallet.execute(req.user.id, amountInCents);
+
     return { id: wallet.id, balance: wallet.balance.toString() };
   }
 
